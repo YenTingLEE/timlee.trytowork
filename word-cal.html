@@ -1,128 +1,184 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <title>中英文字數統計（含數字唸法）</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      max-width: 700px;
-      margin: auto;
-    }
-    textarea {
-      width: 100%;
-      height: 150px;
-      font-size: 16px;
-    }
-    button {
-      margin-top: 10px;
-      padding: 8px 16px;
-      font-size: 16px;
-    }
-    .result {
-      margin-top: 20px;
-    }
-    ul {
-      line-height: 1.8;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>配音稿字數計算工具</title>
+    <style>
+        body {
+            font-family: "微軟正黑體", sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: auto;
+            line-height: 1.6;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .preview-box {
+            border: 2px dashed #aaa;
+            padding: 15px;
+            margin: 15px 0;
+            min-height: 150px;
+            background-color: #f9f9f9;
+            font-size: 16px;
+        }
+        /* 定義各種轉換的顏色標示 */
+        .highlight-num { color: #e91e63; font-weight: bold; } /* 數字轉中文：粉紅 */
+        .highlight-year { color: #9c27b0; font-weight: bold; } /* 年份：紫色 */
+        .highlight-unit { color: #ff9800; font-weight: bold; } /* 單位：橘色 */
+        .highlight-eng { color: #2196f3; font-weight: bold; } /* 英文：藍色 */
+        
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover { background-color: #45a049; }
+        .result-text {
+            font-size: 22px;
+            font-weight: bold;
+            color: #d32f2f;
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
-  <h1>中英文字數統計</h1>
-  <textarea id="inputText" placeholder="請輸入中英文文字和數字..."></textarea>
-  <button onclick="analyzeText()">分析字數</button>
 
-  <div class="result" id="resultArea"></div>
+    <h2>配音稿字數與念法轉換工具</h2>
+    <p>請在下方貼上您的配音稿：</p>
+    <textarea id="inputText" rows="10" placeholder="請輸入配音稿... (例如：這件衣服只要 $500，含有 100% 純棉，重量 1.5kg)"></textarea>
+    
+    <br>
+    <button onclick="previewText()">1. 預覽並轉換念法</button>
 
-  <script>
-    // 數字轉中文讀法
-    function numberToChinese(num) {
-      const units = ['', '十', '百', '千'];
-      const bigUnits = ['', '萬', '億', '兆'];
-      const digitChar = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+    <h3>確認念法與轉換結果</h3>
+    <p style="font-size: 14px; color: #666;">圖例：<span class="highlight-num">數字</span>｜<span class="highlight-year">年份</span>｜<span class="highlight-unit">單位</span>｜<span class="highlight-eng">英文單字</span></p>
+    <div id="previewArea" class="preview-box">預覽畫面將顯示於此...</div>
 
-      if (num === '0') return '零';
+    <button onclick="calculateWords()">2. 確認無誤，計算字數</button>
+    <div id="result" class="result-text"></div>
 
-      let result = '';
-      let str = String(parseInt(num, 10));
-      let sectionCount = 0;
+    <script>
+        // 將一般數字轉換為中文讀法的函數
+        function numberToChinese(numStr) {
+            const zh = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+            const unit = ['', '十', '百', '千'];
+            const bigUnit = ['', '萬', '億'];
+            let result = '';
+            let len = numStr.length;
+            
+            if (numStr === '0') return '零';
 
-      while (str.length > 0) {
-        let section = str.slice(-4);
-        str = str.slice(0, -4);
+            let zeroFlag = false;
+            for (let i = 0; i < len; i++) {
+                let n = parseInt(numStr[i]);
+                let pos = len - i - 1;
+                let uPos = pos % 4;
+                let bPos = Math.floor(pos / 4);
 
-        let sectionStr = '';
-        let zeroFlag = false;
+                if (n !== 0) {
+                    if (zeroFlag) {
+                        result += '零';
+                        zeroFlag = false;
+                    }
+                    if (n === 2 && uPos === 3) {
+                        result += '兩' + unit[uPos];
+                    } else {
+                        result += zh[n] + unit[uPos];
+                    }
+                } else {
+                    zeroFlag = true;
+                }
 
-        for (let i = 0; i < section.length; i++) {
-          const digit = parseInt(section[section.length - 1 - i], 10);
-          if (digit === 0) {
-            if (!zeroFlag && sectionStr.length > 0) {
-              sectionStr = '零' + sectionStr;
+                if (uPos === 0 && bPos > 0 && numStr.substring(i - 3, i + 1) !== '0000') {
+                    result += bigUnit[bPos];
+                    zeroFlag = false; 
+                }
             }
-            zeroFlag = true;
-          } else {
-            sectionStr = digitChar[digit] + units[i] + sectionStr;
-            zeroFlag = false;
-          }
+            if (result.startsWith('一十') && result.length <= 3) {
+                result = result.substring(1);
+            }
+            return result;
         }
 
-        sectionStr = sectionStr.replace(/零+$/, '');
-        if (sectionStr !== '') {
-          result = sectionStr + bigUnits[sectionCount] + result;
+        // 預覽並轉換文字的函數
+        function previewText() {
+            let text = document.getElementById('inputText').value;
+
+            // 基本的安全處理，避免 HTML 標籤錯誤
+            text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+            // 步驟 1-1：處理特殊念法順序的符號 (% 和 $)
+            // % 在中文念法會放到數字前面，例如 50% -> 百分之五十
+            text = text.replace(/(\d+)%/g, '※單位_百分之※$1');
+            // $ 在中文念法會放到數字後面，例如 $100 -> 一百元
+            text = text.replace(/\$(\d+)/g, '$1※單位_元※');
+
+            // 步驟 1-2：處理其他單位 (包含獨立出現的符號)
+            text = text.replace(/°C/g, '※單位_攝氏度※');
+            text = text.replace(/%/g, '※單位_百分之※'); 
+            text = text.replace(/\$/g, '※單位_元※'); 
+            text = text.replace(/kg/gi, '※單位_公斤※'); // i 代表不分大小寫
+
+            // 步驟 2：處理年份 (連續4個數字 + 年)
+            text = text.replace(/(\d{4})(年)/g, function(match, year, nian) {
+                let zhYear = year.replace(/\d/g, d => "零一二三四五六七八九"[d]);
+                return `※年份_${zhYear}${nian}※`;
+            });
+
+            // 步驟 3：處理一般數字
+            text = text.replace(/\d+/g, function(match) {
+                return `※數字_${numberToChinese(match)}※`;
+            });
+
+            // 步驟 4：處理英文單字
+            text = text.replace(/[a-zA-Z]+/g, function(match) {
+                 return `※英文_${match}※`;
+            });
+
+            // 將中文字串標記替換成帶有顏色的 HTML 標籤
+            text = text.replace(/※單位_(.*?)※/g, '<span class="highlight-unit">$1</span>');
+            text = text.replace(/※年份_(.*?)※/g, '<span class="highlight-year">$1</span>');
+            text = text.replace(/※數字_(.*?)※/g, '<span class="highlight-num">$1</span>');
+            text = text.replace(/※英文_(.*?)※/g, '<span class="highlight-eng">$1</span>');
+
+            // 將換行符號轉成網頁的換行標籤
+            text = text.replace(/\n/g, '<br>');
+
+            document.getElementById('previewArea').innerHTML = text;
+            document.getElementById('result').innerText = ''; // 清空之前的計算結果
         }
 
-        sectionCount++;
-      }
+        // 計算字數的函數
+        function calculateWords() {
+            // 從預覽區抓取「已經轉換為中文」的純文字
+            let text = document.getElementById('previewArea').innerText;
+            
+            // 計算中文字數（包含所有轉換後的中文數字與單位）
+            let zhMatches = text.match(/[\u4e00-\u9fa5]/g);
+            let zhCount = zhMatches ? zhMatches.length : 0;
 
-      result = result.replace(/^一十/, '十'); // 10 ~ 19 的簡寫
-      return result;
-    }
+            // 計算英文單字數（連續的英文字母算作一個）
+            let engMatches = text.match(/[a-zA-Z]+/g);
+            let engCount = engMatches ? engMatches.length : 0;
 
-    function analyzeText() {
-      const text = document.getElementById('inputText').value;
+            // 總字數
+            let total = zhCount + engCount;
 
-      const punctuationRegex = /[。，、？！：；“”‘’「」『』—…\-—.,!?;:'"(){}\[\]]/g;
-      const chineseCharRegex = /[\u4e00-\u9fff]/g;
-      const englishWordRegex = /\b[a-zA-Z]+\b/g;
-      const numberRegex = /\b\d+(\.\d+)?\b/g;
-
-      const chineseMatches = text.match(chineseCharRegex) || [];
-      const englishMatches = text.match(englishWordRegex) || [];
-      const numberMatches = text.match(numberRegex) || [];
-
-      const textNoPunc = text.replace(punctuationRegex, '');
-      const chineseNoPunc = textNoPunc.match(chineseCharRegex) || [];
-      const englishNoPunc = textNoPunc.match(englishWordRegex) || [];
-      const numberNoPunc = textNoPunc.match(numberRegex) || [];
-
-      // 數字轉中文唸法字數
-      let numberAsChineseChars = 0;
-      numberMatches.forEach(num => {
-        const chineseStr = numberToChinese(num);
-        numberAsChineseChars += chineseStr.length;
-      });
-
-      const totalWithPunc = chineseMatches.length + englishMatches.length + numberAsChineseChars;
-      const totalWithoutPunc = chineseNoPunc.length + englishNoPunc.length + numberAsChineseChars;
-
-      const resultHTML = `
-        <h3>統計結果</h3>
-        <ul>
-          <li>中文字數（包含標點）：${chineseMatches.length}</li>
-          <li>中文字數（不含標點）：${chineseNoPunc.length}</li>
-          <li>英文單字數（包含標點）：${englishMatches.length}</li>
-          <li>英文單字數（不含標點）：${englishNoPunc.length}</li>
-          <li>數字數量：${numberMatches.length}</li>
-          <li>數字唸法總字數（轉為中文唸法）：${numberAsChineseChars}</li>
-          <li><strong>總字數（包含標點）：${totalWithPunc}</strong></li>
-          <li><strong>總字數（不含標點）：${totalWithoutPunc}</strong></li>
-        </ul>
-      `;
-
-      document.getElementById('resultArea').innerHTML = resultHTML;
-    }
-  </script>
+            document.getElementById('result').innerText = 
+                `💰 總計價字數：${total} 字\n(詳細說明：中文字/符號念法共 ${zhCount} 字，英文共 ${engCount} 個單字)`;
+        }
+    </script>
 </body>
 </html>
